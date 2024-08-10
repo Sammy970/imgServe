@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
-// import module from "node-module";
 
-export const GET = async (req, res) => {
+export const GET = async (req) => {
   const { pathname } = new URL(req.url);
   let [transformationString, assetName] = pathname
     .replace("/api/image", "")
@@ -21,9 +19,6 @@ export const GET = async (req, res) => {
     const assetUrl = `https://utfs.io/f/${assetName}`;
 
     const parser = () => {
-      // sample transformationString: "tr:w-30,h-30,a-4-3"
-      // expected output: { w: 30, h: 30, a: "4-3" }
-
       transformationString = transformationString.replace("tr:", "");
 
       const parsedTransformations = {};
@@ -33,6 +28,8 @@ export const GET = async (req, res) => {
         if (key === "ar") {
           const [arWidth, arHeight] = value.split("_").map(Number);
           parsedTransformations[key] = { width: arWidth, height: arHeight };
+        } else if (key === "fo") {
+          parsedTransformations[key] = value;
         } else {
           parsedTransformations[key] = parseFloat(value); // Handle both integer and float values
         }
@@ -42,6 +39,33 @@ export const GET = async (req, res) => {
     };
 
     const transformations = parser();
+
+    // Object detection
+    let detectedObject;
+    if (transformations.fo) {
+      const objectDetectionResponse = await fetch(
+        `https://detect.roboflow.com/coco/5?api_key=bGQhJmjrGq9dmUW2iUeL&image=${assetUrl}`,
+        { method: "POST" }
+      );
+      const detectionData = await objectDetectionResponse.json();
+
+      // Find the specified object in the detection results
+      detectedObject = detectionData.predictions.find(
+        (prediction) => prediction.class === transformations.fo
+      );
+
+      if (!detectedObject) {
+        // make it null
+        detectedObject = null;
+      }
+
+      if (transformations.fo === "auto") {
+        // Find the object with the highest confidence score
+        detectedObject = detectionData.predictions.reduce((prev, current) =>
+          prev.confidence > current.confidence ? prev : current
+        );
+      }
+    }
 
     // Fetch the original image
     const response = await fetch(assetUrl);
@@ -59,7 +83,6 @@ export const GET = async (req, res) => {
     // Apply width transformation
     if (transformations.w) {
       if (transformations.w <= 1) {
-        // Treat it as a percentage if <= 1 (e.g., 0.4 for 40%)
         transformations.w = Math.round(metadata.width * transformations.w);
       }
     }
@@ -67,7 +90,6 @@ export const GET = async (req, res) => {
     // Apply height transformation
     if (transformations.h) {
       if (transformations.h <= 1) {
-        // Treat it as a percentage if <= 1 (e.g., 0.4 for 40%)
         transformations.h = Math.round(metadata.height * transformations.h);
       }
     }
@@ -84,7 +106,55 @@ export const GET = async (req, res) => {
         transformations.w = Math.round(
           (transformations.h * arWidth) / arHeight
         );
+      } else {
+        transformations.w = metadata.width;
+        transformations.h = Math.round((metadata.width * arHeight) / arWidth);
       }
+    }
+
+    // Define padding values
+    const paddingX = transformations?.fo === "auto" ? 0 : 60; // Add 20 pixels to the width
+    const paddingY = transformations?.fo === "auto" ? 0 : 60; // Add 20 pixels to the height
+
+    // Apply smart cropping
+    if (detectedObject) {
+      console.log("Detected object:", detectedObject);
+      let { x, y, width, height } = detectedObject;
+
+      // Add padding to width and height
+      width += paddingX;
+      height += paddingY;
+
+      // Recalculate the top-left corner after adding padding
+      let cropX = Math.max(0, x - width / 2);
+      let cropY = Math.max(0, y - height / 2);
+
+      // Ensure crop width and height do not exceed the image boundaries
+      let cropWidth = Math.min(metadata.width, width);
+      let cropHeight = Math.min(metadata.height, height);
+
+      // Maintain aspect ratio if specified
+      if (transformations.ar) {
+        const { width: arWidth, height: arHeight } = transformations.ar;
+        const aspectRatio = arWidth / arHeight;
+
+        if (cropWidth / cropHeight > aspectRatio) {
+          cropWidth = cropHeight * aspectRatio;
+        } else {
+          cropHeight = cropWidth / aspectRatio;
+        }
+
+        // Adjust cropX and cropY to center the object within the crop
+        cropX = Math.max(0, x - cropWidth / 2);
+        cropY = Math.max(0, y - cropHeight / 2);
+      }
+
+      image = image.extract({
+        left: Math.round(cropX),
+        top: Math.round(cropY),
+        width: Math.round(cropWidth),
+        height: Math.round(cropHeight),
+      });
     }
 
     // Resize the image based on the calculated width and height
@@ -92,18 +162,12 @@ export const GET = async (req, res) => {
       image = image.resize(transformations.w, transformations.h);
     }
 
-    console.log("Image metadata:", metadata);
-    console.log("Transformations:", transformations);
-
-    // Decrease the quality of the image and convert it to webp
-    image = image.webp({ quality: 100 });
-
     // Convert the processed image to a buffer
     const finalImageBuffer = await image.toBuffer();
 
     // Send the processed image back
     const headers = new Headers();
-    headers.set("Content-Type", "image/webp");
+    headers.set("Content-Type", "image/jpeg");
     headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
     return new NextResponse(finalImageBuffer, {
