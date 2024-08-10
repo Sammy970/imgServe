@@ -20,20 +20,25 @@ export const GET = async (req, res) => {
   try {
     const assetUrl = `https://utfs.io/f/${assetName}`;
 
-    // get width, height from transformationString
-
     const parser = () => {
-      // sample transformationString: "tr:w-30,h-30"
-      transformationString = transformationString.replace("tr:", "");
-      const transformations = transformationString.split(",");
-      const transformation = {};
+      // sample transformationString: "tr:w-30,h-30,a-4-3"
+      // expected output: { w: 30, h: 30, a: "4-3" }
 
-      transformations.forEach((t) => {
-        const [key, value] = t.split("-");
-        transformation[key] = parseFloat(value);
+      transformationString = transformationString.replace("tr:", "");
+
+      const parsedTransformations = {};
+
+      transformationString.split(",").forEach((transformation) => {
+        const [key, value] = transformation.split("-");
+        if (key === "ar") {
+          const [arWidth, arHeight] = value.split("_").map(Number);
+          parsedTransformations[key] = { width: arWidth, height: arHeight };
+        } else {
+          parsedTransformations[key] = parseFloat(value); // Handle both integer and float values
+        }
       });
 
-      return transformation;
+      return parsedTransformations;
     };
 
     const transformations = parser();
@@ -65,11 +70,21 @@ export const GET = async (req, res) => {
         // Treat it as a percentage if <= 1 (e.g., 0.4 for 40%)
         transformations.h = Math.round(metadata.height * transformations.h);
       }
-    } else if (transformations.w) {
-      // Auto-adjust height to maintain aspect ratio
-      transformations.h = Math.round(
-        metadata.height * (transformations.w / metadata.width)
-      );
+    }
+
+    // Apply aspect ratio transformation
+    if (transformations.ar) {
+      const { width: arWidth, height: arHeight } = transformations.ar;
+
+      if (transformations.w) {
+        transformations.h = Math.round(
+          (transformations.w * arHeight) / arWidth
+        );
+      } else if (transformations.h) {
+        transformations.w = Math.round(
+          (transformations.h * arWidth) / arHeight
+        );
+      }
     }
 
     // Resize the image based on the calculated width and height
@@ -77,15 +92,18 @@ export const GET = async (req, res) => {
       image = image.resize(transformations.w, transformations.h);
     }
 
+    console.log("Image metadata:", metadata);
+    console.log("Transformations:", transformations);
+
     // Decrease the quality of the image and convert it to webp
-    image = image.webp({ quality: 80 });
+    image = image.webp({ quality: 100 });
 
     // Convert the processed image to a buffer
     const finalImageBuffer = await image.toBuffer();
 
     // Send the processed image back
     const headers = new Headers();
-    headers.set("Content-Type", "image/jpeg");
+    headers.set("Content-Type", "image/webp");
     headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
     return new NextResponse(finalImageBuffer, {
