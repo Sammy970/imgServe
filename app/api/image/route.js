@@ -116,12 +116,11 @@ export const GET = async (req) => {
     }
 
     // Define padding values
-    const paddingX = transformations?.fo === "auto" ? 0 : 60; // Add 20 pixels to the width
-    const paddingY = transformations?.fo === "auto" ? 0 : 60; // Add 20 pixels to the height
+    const paddingX = 70; // Add 20 pixels to the width
+    const paddingY = 70; // Add 20 pixels to the height
 
     // Apply smart cropping
     if (detectedObject) {
-      console.log("Detected object:", detectedObject);
       let { x, y, width, height } = detectedObject;
 
       // Add padding to width and height
@@ -133,8 +132,8 @@ export const GET = async (req) => {
       let cropY = Math.max(0, y - height / 2);
 
       // Ensure crop width and height do not exceed the image boundaries
-      let cropWidth = Math.min(metadata.width, width);
-      let cropHeight = Math.min(metadata.height, height);
+      let cropWidth = Math.min(metadata.width - cropX, width);
+      let cropHeight = Math.min(metadata.height - cropY, height);
 
       // Maintain aspect ratio if specified
       if (transformations.ar) {
@@ -152,6 +151,20 @@ export const GET = async (req) => {
         cropY = Math.max(0, y - cropHeight / 2);
       }
 
+      // Further boundary checks to ensure we don't exceed image dimensions
+      if (cropX + cropWidth > metadata.width) {
+        cropWidth = metadata.width - cropX;
+      }
+
+      if (cropY + cropHeight > metadata.height) {
+        cropHeight = metadata.height - cropY;
+      }
+
+      // Final check to prevent negative width/height or zero-size crop areas
+      cropWidth = Math.max(1, cropWidth);
+      cropHeight = Math.max(1, cropHeight);
+
+      // Extract the cropped area with the added padding
       image = image.extract({
         left: Math.round(cropX),
         top: Math.round(cropY),
