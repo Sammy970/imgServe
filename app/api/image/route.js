@@ -5,7 +5,7 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 export const GET = async (req, res) => {
   const { pathname } = new URL(req.url);
-  const [transformationString, assetName] = pathname
+  let [transformationString, assetName] = pathname
     .replace("/api/image", "")
     .split("/")
     .filter(Boolean);
@@ -17,18 +17,51 @@ export const GET = async (req, res) => {
     );
   }
 
-  const imgUrl = `https://utfs.io/f/${assetName}`;
+  const assetUrl = `https://utfs.io/f/${assetName}`;
 
-  console.log(`
-    Transformation: ${transformationString}
-    Asset: ${assetName}
-    Image URL: ${imgUrl}
-    `);
+  // get width, height from transformationString
 
-  return NextResponse.json(
-    { data: imgUrl },
-    {
-      status: 200,
-    }
-  );
+  const parser = () => {
+    // sample transformationString: "tr:w-30,h-30"
+    transformationString = transformationString.replace("tr:", "");
+    const transformations = transformationString.split(",");
+    const transformation = {};
+
+    transformations.forEach((t) => {
+      const [key, value] = t.split("-");
+      transformation[key] = value;
+    });
+
+    return transformation;
+  };
+
+  const transformation = parser();
+
+  // Fetch the original image
+  const response = await fetch(assetUrl);
+  if (!response.ok) {
+    throw new Error("Failed to fetch the image");
+  }
+  const imageBuffer = await response.arrayBuffer();
+
+  // Apply transformations using Sharp
+  let image = sharp(Buffer.from(imageBuffer));
+  if (transformation.w && transformation.h) {
+    image = image.resize(
+      parseInt(transformation.w),
+      parseInt(transformation.h)
+    );
+  }
+
+  // Convert the processed image to a buffer
+  const finalImageBuffer = await image.toBuffer();
+
+  // Send the processed image back
+  const headers = new Headers();
+  headers.set("Content-Type", "image/jpeg");
+  headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+
+  return new NextResponse(finalImageBuffer, {
+    headers,
+  });
 };
