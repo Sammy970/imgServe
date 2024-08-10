@@ -6,10 +6,13 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/tr:transformation/:asset*',
-        destination: '/api/image?transformation=:transformation&asset=:asset*',
+        source: "/tr:transformation/:asset*",
+        destination: "/api/image?transformation=:transformation&asset=:asset*",
       },
     ];
+  },
+  images: {
+    domains: ["imgserve.vercel.app"],
   },
 };
 
