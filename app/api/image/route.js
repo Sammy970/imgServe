@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 
 export const GET = async (req) => {
+  // use env - ROBOFLOW_API_KEY below
+  const ROBOFLOW_API_KEY = process.env.ROBOFLOW_API_KEY;
+
   const { pathname } = new URL(req.url);
   let [transformationString, assetName] = pathname
     .replace("/api/image", "")
@@ -44,7 +47,7 @@ export const GET = async (req) => {
     let detectedObject;
     if (transformations.fo) {
       const objectDetectionResponse = await fetch(
-        `https://detect.roboflow.com/coco/5?api_key=bGQhJmjrGq9dmUW2iUeL&image=${assetUrl}`,
+        `https://detect.roboflow.com/coco/5?api_key=${ROBOFLOW_API_KEY}&image=${assetUrl}`,
         { method: "POST" }
       );
       const detectionData = await objectDetectionResponse.json();
