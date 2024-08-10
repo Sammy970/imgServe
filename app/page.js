@@ -8,14 +8,13 @@ export default function Home() {
           <img
             src={`https://imgserve.vercel.app/tr:w-0.7/31898534-55b7-4700-a04a-e38956fac843-2487m.webp`}
             className="object-cover w-full h-full rounded-lg"
-            fill
           />
         </div>
         <div className="max-w-[100%]">
           <img
-            src={`https://imgserve.vercel.app/tr:w-0.7/31898534-55b7-4700-a04a-e38956fac843-2487m.webp`}
+            src={`https://imgserve.vercel.app/tr:fo-person,ar-4_3,w-300/3cc12433-b5cc-4ca8-8f85-e8d37eb8f8fe-1tn2lc.jpg`}
             className="object-cover w-full h-full rounded-lg"
-            fill
+            fetchPriority="high"
           />
         </div>
       </div>

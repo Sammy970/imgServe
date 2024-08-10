@@ -12,7 +12,7 @@ const nextConfig = {
     ];
   },
   images: {
-    domains: ["imgserve.vercel.app"],
+    domains: ["imgserve.vercel.app", "localhost"],
   },
 };
 

@@ -115,56 +115,57 @@ export const GET = async (req) => {
       }
     }
 
-    // Define padding values
-    const paddingX = 70; // Add 20 pixels to the width
-    const paddingY = 70; // Add 20 pixels to the height
-
-    // Apply smart cropping
     if (detectedObject) {
-      let { x, y, width, height } = detectedObject;
+      const { x, y, width, height } = detectedObject;
 
-      // Add padding to width and height
-      width += paddingX;
-      height += paddingY;
-
-      // Recalculate the top-left corner after adding padding
+      // Ensure the crop box doesn't cut off any part of the object
       let cropX = Math.max(0, x - width / 2);
       let cropY = Math.max(0, y - height / 2);
+      let cropWidth = width;
+      let cropHeight = height;
 
-      // Ensure crop width and height do not exceed the image boundaries
-      let cropWidth = Math.min(metadata.width - cropX, width);
-      let cropHeight = Math.min(metadata.height - cropY, height);
+      const CROP_PADDING = transformations.ar ? 40 : 10; // Add padding to the crop area
 
-      // Maintain aspect ratio if specified
+      cropX = Math.max(0, cropX - CROP_PADDING);
+      cropY = Math.max(0, cropY - CROP_PADDING);
+      cropWidth = Math.min(
+        metadata.width - cropX,
+        cropWidth + 2 * CROP_PADDING
+      );
+      cropHeight = Math.min(
+        metadata.height - cropY,
+        cropHeight + 2 * CROP_PADDING
+      );
+
       if (transformations.ar) {
         const { width: arWidth, height: arHeight } = transformations.ar;
         const aspectRatio = arWidth / arHeight;
 
+        // Calculate required width and height to fit the aspect ratio while keeping the object fully visible
+        let requiredWidth = cropWidth;
+        let requiredHeight = cropHeight;
+
         if (cropWidth / cropHeight > aspectRatio) {
-          cropWidth = cropHeight * aspectRatio;
+          requiredHeight = cropWidth / aspectRatio;
         } else {
-          cropHeight = cropWidth / aspectRatio;
+          requiredWidth = cropHeight * aspectRatio;
         }
 
-        // Adjust cropX and cropY to center the object within the crop
-        cropX = Math.max(0, x - cropWidth / 2);
-        cropY = Math.max(0, y - cropHeight / 2);
+        // Adjust cropX and cropY to center the object while maintaining aspect ratio
+        cropX = Math.max(
+          0,
+          Math.min(metadata.width - requiredWidth, x - requiredWidth / 2)
+        );
+        cropY = Math.max(
+          0,
+          Math.min(metadata.height - requiredHeight, y - requiredHeight / 2)
+        );
+
+        // Update the crop dimensions to the required aspect ratio dimensions
+        cropWidth = Math.min(requiredWidth, metadata.width - cropX);
+        cropHeight = Math.min(requiredHeight, metadata.height - cropY);
       }
 
-      // Further boundary checks to ensure we don't exceed image dimensions
-      if (cropX + cropWidth > metadata.width) {
-        cropWidth = metadata.width - cropX;
-      }
-
-      if (cropY + cropHeight > metadata.height) {
-        cropHeight = metadata.height - cropY;
-      }
-
-      // Final check to prevent negative width/height or zero-size crop areas
-      cropWidth = Math.max(1, cropWidth);
-      cropHeight = Math.max(1, cropHeight);
-
-      // Extract the cropped area with the added padding
       image = image.extract({
         left: Math.round(cropX),
         top: Math.round(cropY),
@@ -177,6 +178,9 @@ export const GET = async (req) => {
     if (transformations.w || transformations.h) {
       image = image.resize(transformations.w, transformations.h);
     }
+
+    // qualtiy 80
+    image = image.jpeg({ progressive: true, quality: 75 });
 
     // Convert the processed image to a buffer
     const finalImageBuffer = await image.toBuffer();
