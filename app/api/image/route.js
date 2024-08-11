@@ -197,6 +197,16 @@ export const GET = async (req) => {
       image = image.resize(transformations.w, transformations.h);
     }
 
+    // Apply rotation transoformation if rt-number is provided and once rotation is applied, the image should have transparent background
+    if (transformations.rt) {
+      const rotation = parseInt(transformations.rt);
+
+      // Convert the image to PNG format if not already, to support transparency
+      image = image.png().rotate(rotation, {
+        background: { r: 0, g: 0, b: 0, alpha: 0 }, // Set the background to transparent
+      });
+    }
+
     // qualtiy 80
     image = image.jpeg({ progressive: true, quality: 75 });
 
@@ -205,7 +215,10 @@ export const GET = async (req) => {
 
     // Send the processed image back
     const headers = new Headers();
-    headers.set("Content-Type", "image/jpeg");
+    headers.set(
+      "Content-Type",
+      `${transformationString?.rt ? "image/png" : `image/${metadata.format}`}`
+    );
     headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
     return new NextResponse(finalImageBuffer, {
