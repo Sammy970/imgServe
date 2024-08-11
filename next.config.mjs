@@ -6,8 +6,12 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/tr:transformation/:asset*",
+        source: "/image/tr:transformation/:asset*",
         destination: "/api/image?transformation=:transformation&asset=:asset*",
+      },
+      {
+        source: "/image/:asset*",
+        destination: "/api/image?asset=:asset*",
       },
     ];
   },

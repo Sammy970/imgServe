@@ -6,10 +6,20 @@ export const GET = async (req) => {
   const ROBOFLOW_API_KEY = process.env.ROBOFLOW_API_KEY;
 
   const { pathname } = new URL(req.url);
-  let [transformationString, assetName] = pathname
-    .replace("/api/image", "")
-    .split("/")
-    .filter(Boolean);
+
+  let pathSegments = pathname.replace("/image", "").split("/").filter(Boolean);
+
+  let transformationString, assetName;
+
+  if (pathSegments[0].startsWith("tr:")) {
+    transformationString = pathSegments[0];
+    assetName = pathSegments.slice(1).join("/");
+  } else {
+    transformationString = "";
+    assetName = pathSegments.join("/");
+  }
+
+  console.log(transformationString, assetName);
 
   if (!assetName) {
     return NextResponse.json(
@@ -202,6 +212,7 @@ export const GET = async (req) => {
       headers,
     });
   } catch (error) {
+    console.log(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 };
