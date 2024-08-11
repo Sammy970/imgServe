@@ -32,7 +32,8 @@ export const GET = async (req) => {
           const [arWidth, arHeight] = value.split("_").map(Number);
           parsedTransformations[key] = { width: arWidth, height: arHeight };
         } else if (key === "fo") {
-          parsedTransformations[key] = value;
+          let parsedValue = value.replace(/([a-z])([A-Z])/g, "$1 $2");
+          parsedTransformations[key] = parsedValue.toLowerCase();
         } else {
           parsedTransformations[key] = parseFloat(value); // Handle both integer and float values
         }
@@ -52,21 +53,28 @@ export const GET = async (req) => {
       );
       const detectionData = await objectDetectionResponse.json();
 
-      // Find the specified object in the detection results
-      detectedObject = detectionData.predictions.find(
-        (prediction) => prediction.class === transformations.fo
-      );
-
-      if (!detectedObject) {
-        // make it null
-        detectedObject = null;
-      }
-
       if (transformations.fo === "auto") {
         // Find the object with the highest confidence score
         detectedObject = detectionData.predictions.reduce((prev, current) =>
           prev.confidence > current.confidence ? prev : current
         );
+      } else {
+        // Find the specified object in the detection results
+        detectedObject = detectionData.predictions
+          .map((prediction) => {
+            if (prediction.class === transformations.fo) {
+              return prediction;
+            }
+          })
+          .filter((item) => item !== undefined);
+
+        detectedObject = detectedObject.reduce((prev, current) =>
+          prev.confidence > current.confidence ? prev : current
+        );
+
+        if (!detectedObject) {
+          detectedObject = null;
+        }
       }
     }
 
