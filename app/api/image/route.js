@@ -208,7 +208,7 @@ export const GET = async (req) => {
     }
 
     // qualtiy 80
-    image = image.jpeg({ progressive: true, quality: 75 });
+    // image = image.jpeg({ progressive: true, quality: 75 });
 
     // Convert the processed image to a buffer
     const finalImageBuffer = await image.toBuffer();
