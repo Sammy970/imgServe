@@ -6,6 +6,7 @@ export const GET = async (req) => {
   const ROBOFLOW_API_KEY = process.env.ROBOFLOW_API_KEY;
 
   const { pathname } = new URL(req.url);
+  const parsedUrl = new URL(req.url);
 
   let pathSegments = pathname.replace("/image", "").split("/").filter(Boolean);
 
@@ -19,7 +20,11 @@ export const GET = async (req) => {
     assetName = pathSegments.join("/");
   }
 
-  console.log(transformationString, assetName);
+  if (parsedUrl?.search && parsedUrl.search.includes("?tr:")) {
+    transformationString = parsedUrl.search.replace("?tr:", "tr:");
+  }
+
+  // console.log(transformationString, assetName);
 
   if (!assetName) {
     return NextResponse.json(

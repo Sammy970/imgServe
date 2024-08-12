@@ -13,6 +13,16 @@ const nextConfig = {
         source: "/image/:asset*",
         destination: "/api/image?asset=:asset*",
       },
+      {
+        source: "/image/:asset*",
+        has: [
+          {
+            type: "query",
+            key: "tr",
+          },
+        ],
+        destination: "/api/image?transformation=:tr&asset=:asset*",
+      },
     ];
   },
   images: {
