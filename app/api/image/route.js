@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
+const cache = new Map(); // Simple in-memory cache
 
 export const GET = async (req) => {
   // use env - ROBOFLOW_API_KEY below
@@ -33,6 +34,24 @@ export const GET = async (req) => {
     );
   }
 
+  const cacheKey = `${assetName}-${transformationString}`;
+
+  if (cache.has(cacheKey)) {
+    // Serve from cache
+    const cachedImage = cache.get(cacheKey);
+    // Send the processed image back
+    const headers = new Headers();
+    headers.set(
+      "Content-Type",
+      `${transformationString?.rt ? "image/png" : `image/jpeg`}`
+    );
+    headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+
+    return new NextResponse(cachedImage, {
+      headers,
+    });
+  }
+
   try {
     const assetUrl = `https://utfs.io/f/${assetName}`;
 
@@ -40,16 +59,54 @@ export const GET = async (req) => {
       transformationString = transformationString.replace("tr:", "");
 
       const parsedTransformations = {};
+      const transformations = transformationString.split(",");
 
-      transformationString.split(",").forEach((transformation) => {
+      let overlayText = "";
+
+      transformations.forEach((transformation) => {
         const [key, value] = transformation.split("-");
-        if (key === "ar") {
+
+        if (transformation === "l-text") {
+          // in transformations array, find the index of l-text, and l-end
+          const textStartIndex = transformations.indexOf("l-text");
+          const textEndIndex = transformations.indexOf("l-end");
+
+          // get the text between l-text and l-end
+          overlayText = transformations.slice(textStartIndex + 1, textEndIndex);
+
+          // remove the text from transformations array
+          transformations.splice(
+            textStartIndex,
+            textEndIndex - textStartIndex + 1
+          );
+
+          // add eacah key:value object to parsedTransformations in array
+
+          // parsedTransformations.overlayText = {
+          // w: 300,
+          // h: 100,
+          // }
+
+          parsedTransformations.overlayText = {};
+
+          for (const item of overlayText) {
+            const [key, value] = item.split("-");
+            const parsedValue = isNaN(Number(value)) ? value : Number(value);
+            parsedTransformations["overlayText"][key] = parsedValue;
+          }
+        }
+        // Aspect Ratio
+        else if (key === "ar") {
           const [arWidth, arHeight] = value.split("_").map(Number);
           parsedTransformations[key] = { width: arWidth, height: arHeight };
-        } else if (key === "fo") {
+        }
+        // smart crop fo
+        else if (key === "fo") {
           let parsedValue = value.replace(/([a-z])([A-Z])/g, "$1 $2");
           parsedTransformations[key] = parsedValue.toLowerCase();
-        } else {
+        }
+        // all other keys
+        else {
           parsedTransformations[key] = parseFloat(value); // Handle both integer and float values
         }
       });
@@ -58,6 +115,8 @@ export const GET = async (req) => {
     };
 
     const transformations = parser();
+
+    console.log(transformations);
 
     // Object detection
     let detectedObject;
@@ -138,6 +197,7 @@ export const GET = async (req) => {
       }
     }
 
+    // Apply smart crop transformation
     if (detectedObject) {
       const { x, y, width, height } = detectedObject;
 
@@ -212,11 +272,61 @@ export const GET = async (req) => {
       });
     }
 
+    // Apply overlay text transformation
+    if (transformations.overlayText) {
+      // Retrieve the metadata of the image to get its dimensions
+      const metadata = await image.metadata();
+      const imageWidth = metadata.width;
+      const imageHeight = metadata.height;
+
+      console.log(transformations.overlayText); // { overlayText: { i: 'Hello' } }
+
+      const { i, w, h, th, fs, cl, tx, ty } = transformations.overlayText;
+
+      console.log(i); // "Hello"
+
+      // Create an SVG image with the text
+      const svgText = `
+        <svg width="${w ? w : "auto"}" height="${h ? h : 100}">
+          <text x="0" y="${th ? th : 100}" font-size="${fs ? fs : 30}" fill="${
+        cl ? cl : "black"
+      }">
+            ${i}
+          </text>
+        </svg>
+      `;
+
+      // Create a buffer from the SVG text
+      const textBuffer = Buffer.from(svgText);
+
+      // Calculate the text's dimensions (assuming text width is proportional to its length and font size)
+      const textWidth = (fs || 30) * i.length; // Approximate text width
+      const textHeight = fs || 30; // Approximate text height
+
+      // Calculate default coordinates to center the text
+      const defaultX = Math.round((imageWidth - textWidth) / 2);
+      const defaultY = Math.round((imageHeight - textHeight) / 2);
+
+      console.log(defaultX, defaultY);
+
+      // Composite the text onto the image at specified x, y coordinates
+      image = image.composite([
+        {
+          input: textBuffer,
+          top: ty !== undefined ? ty : defaultY, // Y coordinate for text placement
+          left: tx !== undefined ? tx : defaultX, // X coordinate for text placement
+        },
+      ]);
+    }
+
     // qualtiy 80
     // image = image.jpeg({ progressive: true, quality: 75 });
 
     // Convert the processed image to a buffer
     const finalImageBuffer = await image.toBuffer();
+
+    // Cache the processed image
+    cache.set(cacheKey, finalImageBuffer);
 
     // Send the processed image back
     const headers = new Headers();
