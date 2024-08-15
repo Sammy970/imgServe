@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ["@napi-rs/canvas"],
-  },
+  // experimental: {
+  //   serverComponentsExternalPackages: ["@napi-rs/canvas"],
+  // },
   async rewrites() {
     return [
       {
@@ -27,6 +27,10 @@ const nextConfig = {
   },
   images: {
     domains: ["imgserve.vercel.app", "localhost"],
+  },
+  webpack: (config, context) => {
+    config.externals.push("@napi-rs/canvas");
+    return config;
   },
 };
 
