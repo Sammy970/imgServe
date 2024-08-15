@@ -169,6 +169,8 @@ export const GET = async (req) => {
     // Get original image metadata
     const metadata = await image.metadata();
 
+    console.log("Check out transformations", transformations);
+
     // Apply width transformation
     if (transformations.w) {
       if (transformations.w <= 1) {
