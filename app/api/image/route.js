@@ -289,7 +289,6 @@ export const GET = async (req) => {
         const processedImageBuffer = await image.toBuffer();
 
         const imageLoaded = await loadImage(processedImageBuffer);
-        console.log("imageLoaded", imageLoaded);
 
         // Create a canvas with the same dimensions as the image
         // canvas = createCanvas(imageLoaded.width, imageLoaded.height);
@@ -450,7 +449,8 @@ export const GET = async (req) => {
     let finalImageBuffer;
 
     if (transformations.overlayText) {
-      finalImageBuffer = canvas.toBuffer("image/png");
+      // finalImageBuffer = canvas.toBuffer("image/png");
+      finalImageBuffer = await canvas.encode("png");
     }
     // Convert the processed image to a buffer
     else {
