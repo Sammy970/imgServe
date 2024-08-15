@@ -28,6 +28,11 @@ const nextConfig = {
   images: {
     domains: ["imgserve.vercel.app", "localhost"],
   },
+  experimental: {
+    outputFileTracingIncludes: {
+      "./app/api/image/route": ["./fonts/*"],
+    },
+  },
   webpack: (config, context) => {
     config.externals.push("@napi-rs/canvas");
     return config;
