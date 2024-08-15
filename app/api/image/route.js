@@ -2,6 +2,7 @@ import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
+const cache = new Map();
 
 GlobalFonts.registerFromPath(join(process.cwd(), "fonts/Arial.ttf"));
 
@@ -36,13 +37,6 @@ export async function GET(req) {
   }
 
   const cacheKey = `${assetName}-${transformationString}`;
-
-  // console.log("cache has", cache.has(cacheKey));
-  console.log(
-    "Assrt name, transformationString",
-    assetName,
-    transformationString
-  );
 
   if (cache.has(cacheKey)) {
     // Serve from cache
@@ -170,8 +164,6 @@ export async function GET(req) {
 
     // Get original image metadata
     const metadata = await image.metadata();
-
-    console.log("Check out transformations", transformations);
 
     // Apply width transformation
     if (transformations.w) {
@@ -339,8 +331,6 @@ export async function GET(req) {
         };
 
         const lines = wrapText(ctx, text, w);
-
-        console.log("lines", lines);
 
         // Measure the text size
         const textWidth = Math.max(
