@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { Canvas, loadImage } from "@napi-rs/canvas";
+import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 
 export async function GET(req) {
   // use env - ROBOFLOW_API_KEY below
@@ -287,7 +287,9 @@ export async function GET(req) {
 
         const processedImageBuffer = await image.toBuffer();
 
-        const imageLoaded = await loadImage(processedImageBuffer);
+        GlobalFonts.registerFromPath("public/Roboto-Italic.ttf", "Yo");
+
+        const imageLoaded = await loadImage(assetUrl);
 
         // Create a canvas with the same dimensions as the image
         // canvas = createCanvas(imageLoaded.width, imageLoaded.height);
@@ -308,7 +310,7 @@ export async function GET(req) {
         ctx.drawImage(imageLoaded, 0, 0);
 
         // Set the font and color for the text
-        ctx.font = `${fs ? fs : 40}px Arial`; // Font size and family
+        ctx.font = `${fs ? fs : 40}px Yo`; // Font size and family
         ctx.fillStyle = cl ? cl : "white"; // Text color
 
         // Function to wrap text
@@ -437,7 +439,7 @@ export async function GET(req) {
         // ctx.fillText(text, adjustedX, adjustedY);
 
         // Draw each line of text on the canvas
-        lines.forEach((line, index) => {
+        await lines.forEach((line, index) => {
           ctx.fillText(line, posX, posY + index * textHeight); // Adjust for line height
         });
       } catch (error) {
