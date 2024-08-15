@@ -35,6 +35,13 @@ export const GET = async (req) => {
 
   const cacheKey = `${assetName}-${transformationString}`;
 
+  console.log("cache has", cache.has(cacheKey));
+  console.log(
+    "Assrt name, transformationString",
+    assetName,
+    transformationString
+  );
+
   if (cache.has(cacheKey)) {
     // Serve from cache
     const cachedImage = cache.get(cacheKey);
