@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { Canvas, createCanvas, loadImage } from "@napi-rs/canvas";
-const cache = new Map(); // Simple in-memory cache
+import { Canvas, loadImage } from "@napi-rs/canvas";
 
-export const GET = async (req) => {
+export async function GET(req) {
   // use env - ROBOFLOW_API_KEY below
   const ROBOFLOW_API_KEY = process.env.ROBOFLOW_API_KEY;
 
@@ -476,4 +475,8 @@ export const GET = async (req) => {
     console.error("error in api: ", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-};
+}
+
+export default async function handler(req) {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
