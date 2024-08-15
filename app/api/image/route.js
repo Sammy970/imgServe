@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 const cache = new Map(); // Simple in-memory cache
 
 export const GET = async (req) => {
@@ -25,8 +26,6 @@ export const GET = async (req) => {
     transformationString = parsedUrl.search.replace("?tr:", "tr:");
   }
 
-  // console.log(transformationString, assetName);
-
   if (!assetName) {
     return NextResponse.json(
       { error: "Asset name is required" },
@@ -43,7 +42,7 @@ export const GET = async (req) => {
     const headers = new Headers();
     headers.set(
       "Content-Type",
-      `${transformationString?.rt ? "image/png" : `image/jpeg`}`
+      `${transformationString?.rt ? "image/png" : `image/png`}`
     );
     headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
@@ -115,8 +114,6 @@ export const GET = async (req) => {
     };
 
     const transformations = parser();
-
-    console.log(transformations);
 
     // Object detection
     let detectedObject;
@@ -273,57 +270,177 @@ export const GET = async (req) => {
     }
 
     // Apply overlay text transformation
+
+    let canvas;
+
     if (transformations.overlayText) {
-      // Retrieve the metadata of the image to get its dimensions
-      const metadata = await image.metadata();
-      const imageWidth = metadata.width;
-      const imageHeight = metadata.height;
+      try {
+        const { i, lx, ly, fs, cl, w, lfo } = transformations.overlayText;
 
-      console.log(transformations.overlayText); // { overlayText: { i: 'Hello' } }
+        const processedImageBuffer = await image.toBuffer();
 
-      const { i, w, h, th, fs, cl, tx, ty } = transformations.overlayText;
+        const imageLoaded = await loadImage(processedImageBuffer);
 
-      console.log(i); // "Hello"
+        // Create a canvas with the same dimensions as the image
+        canvas = createCanvas(imageLoaded.width, imageLoaded.height);
+        const ctx = canvas.getContext("2d");
 
-      // Create an SVG image with the text
-      const svgText = `
-        <svg width="${w ? w : "auto"}" height="${h ? h : 100}">
-          <text x="0" y="${th ? th : 100}" font-size="${fs ? fs : 30}" fill="${
-        cl ? cl : "black"
-      }">
-            ${i}
-          </text>
-        </svg>
-      `;
+        let text;
+        if (i.includes("%20")) {
+          // i = Hello%20World
+          text = i.replace(/%20/g, " ");
+        } else {
+          text = i;
+        }
 
-      // Create a buffer from the SVG text
-      const textBuffer = Buffer.from(svgText);
+        // Draw the image onto the canvas
+        ctx.drawImage(imageLoaded, 0, 0);
 
-      // Calculate the text's dimensions (assuming text width is proportional to its length and font size)
-      const textWidth = (fs || 30) * i.length; // Approximate text width
-      const textHeight = fs || 30; // Approximate text height
+        // Set the font and color for the text
+        ctx.font = `${fs ? fs : 40}px Arial`; // Font size and family
+        ctx.fillStyle = cl ? cl : "white"; // Text color
 
-      // Calculate default coordinates to center the text
-      const defaultX = Math.round((imageWidth - textWidth) / 2);
-      const defaultY = Math.round((imageHeight - textHeight) / 2);
+        // Function to wrap text
+        const wrapText = (context, text, maxWidth) => {
+          if (!maxWidth) {
+            return [text];
+          }
 
-      console.log(defaultX, defaultY);
+          const words = text.split(" ");
+          let line = "";
+          const lines = [];
 
-      // Composite the text onto the image at specified x, y coordinates
-      image = image.composite([
-        {
-          input: textBuffer,
-          top: ty !== undefined ? ty : defaultY, // Y coordinate for text placement
-          left: tx !== undefined ? tx : defaultX, // X coordinate for text placement
-        },
-      ]);
+          for (let i = 0; i < words.length; i++) {
+            const testLine = line + words[i] + " ";
+            const testWidth = context.measureText(testLine).width;
+            if (testWidth > maxWidth && i > 0) {
+              lines.push(line.trim());
+              line = words[i] + " ";
+            } else {
+              line = testLine;
+            }
+          }
+          lines.push(line.trim());
+          return lines;
+        };
+
+        const lines = wrapText(ctx, text, w);
+
+        // Measure the text size
+        const textWidth = Math.max(
+          ...lines.map((line) => ctx.measureText(line).width)
+        );
+        const textHeight = fs ? parseInt(fs, 10) : 40; // Adjust based on font size
+        const totalTextHeight = lines.length * textHeight;
+
+        let posX, posY;
+
+        if (lfo) {
+          // Calculate position based on lfo (layout format option)
+          switch (lfo) {
+            case "top":
+              posX = (imageLoaded.width - textWidth) / 2;
+              posY = textHeight;
+              break;
+            case "top_left":
+              posX = 10;
+              posY = textHeight + 10;
+              break;
+            case "top_right":
+              posX = imageLoaded.width - textWidth;
+              posY = textHeight + 10;
+              break;
+            case "middle":
+              posX = (imageLoaded.width - textWidth) / 2;
+              posY = (imageLoaded.height - totalTextHeight) / 2 + textHeight; // Center vertically based on line count
+              break;
+            case "middle_left":
+              posX = 10;
+              posY = (imageLoaded.height - totalTextHeight) / 2 + textHeight; // Center vertically based on line count
+              break;
+            case "middle_right":
+              posX = imageLoaded.width - textWidth;
+              posY = (imageLoaded.height - totalTextHeight) / 2 + textHeight; // Center vertically based on line count
+              break;
+            case "bottom":
+              posX = (imageLoaded.width - textWidth) / 2;
+              posY = imageLoaded.height - totalTextHeight + textHeight;
+              break;
+            case "bottom_left":
+              posX = 10;
+              posY = imageLoaded.height - totalTextHeight + textHeight - 15;
+              break;
+            case "bottom_right":
+              posX = imageLoaded.width - textWidth - 10;
+              posY = imageLoaded.height - totalTextHeight + textHeight - 15;
+              break;
+            default:
+              // Default to middle if lfo is not recognized
+              posX = (imageLoaded.width - textWidth) / 2;
+              posY = (imageLoaded.height - totalTextHeight) / 2 + textHeight; // Center vertically based on line count
+          }
+        } else {
+          let lxFromUser = lx || 0; // X coordinate
+          let lyFromUser = ly || 0; // Y coordinate
+
+          // Calculate maximum X and Y coordinates
+          const maxX = imageLoaded.width - textWidth;
+          const maxY = imageLoaded.height - totalTextHeight;
+
+          if (lx === undefined && ly === undefined) {
+            // Center the text horizontally and vertically
+            posX = (imageLoaded.width - textWidth) / 2;
+            posY =
+              (imageLoaded.height - lines.length * textHeight) / 2 + textHeight; // Center vertically based on line count
+          } else {
+            // Handle lxFromUser
+            const isNegativeX =
+              typeof lxFromUser === "string" && lxFromUser.startsWith("N");
+            posX = isNegativeX
+              ? imageLoaded.width -
+                parseInt(lxFromUser.slice(1), 10) -
+                textWidth
+              : parseInt(lxFromUser, 10);
+
+            // Handle lyFromUser
+            const isNegativeY =
+              typeof lyFromUser === "string" && lyFromUser.startsWith("N");
+            posY = isNegativeY
+              ? imageLoaded.height -
+                parseInt(lyFromUser.slice(1), 10) -
+                totalTextHeight
+              : parseInt(lyFromUser, 10);
+          }
+
+          // Adjust coordinates to ensure text fits within image boundaries
+          posX = Math.max(0, Math.min(posX, maxX));
+          posY = Math.max(
+            textHeight,
+            Math.min(posY + textHeight, maxY + textHeight)
+          );
+        }
+
+        // Draw the text on the canvas
+        // ctx.fillText(text, adjustedX, adjustedY);
+
+        // Draw each line of text on the canvas
+        lines.forEach((line, index) => {
+          ctx.fillText(line, posX, posY + index * textHeight); // Adjust for line height
+        });
+      } catch (error) {
+        console.error("Error found in overlay text transformation", error);
+      }
     }
 
-    // qualtiy 80
-    // image = image.jpeg({ progressive: true, quality: 75 });
+    let finalImageBuffer;
 
+    if (transformations.overlayText) {
+      finalImageBuffer = canvas.toBuffer("image/png");
+    }
     // Convert the processed image to a buffer
-    const finalImageBuffer = await image.toBuffer();
+    else {
+      finalImageBuffer = await image.toBuffer();
+    }
 
     // Cache the processed image
     cache.set(cacheKey, finalImageBuffer);
@@ -340,7 +457,7 @@ export const GET = async (req) => {
       headers,
     });
   } catch (error) {
-    console.log(error);
+    console.error("error in api: ", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 };
