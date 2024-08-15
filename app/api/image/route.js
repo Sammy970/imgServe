@@ -464,9 +464,10 @@ export const GET = async (req) => {
     const headers = new Headers();
     headers.set(
       "Content-Type",
-      `${transformationString?.rt ? "image/png" : `image/${metadata.format}`}`
+      `${transformationString?.rt ? "image/png" : `image/png`}`
     );
-    headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+    headers.set("Content-Disposition", "inline");
+    // headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
     return new NextResponse(finalImageBuffer, {
       headers,
