@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { Canvas, createCanvas, loadImage } from "@napi-rs/canvas";
 const cache = new Map(); // Simple in-memory cache
 
 export const GET = async (req) => {
@@ -292,7 +292,10 @@ export const GET = async (req) => {
         console.log("imageLoaded", imageLoaded);
 
         // Create a canvas with the same dimensions as the image
-        canvas = createCanvas(imageLoaded.width, imageLoaded.height);
+        // canvas = createCanvas(imageLoaded.width, imageLoaded.height);
+        // const ctx = canvas.getContext("2d");
+
+        canvas = new Canvas(imageLoaded.width, imageLoaded.height);
         const ctx = canvas.getContext("2d");
 
         let text;
