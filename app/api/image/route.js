@@ -1,3 +1,4 @@
+import { join } from 'path'
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
