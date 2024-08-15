@@ -1,9 +1,9 @@
-import { join } from 'path'
+import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 
-GlobalFonts.registerFromPath(join(process.cwd(), 'fonts/Arial.ttf'))
+GlobalFonts.registerFromPath(join(process.cwd(), "fonts/Arial.ttf"));
 
 export async function GET(req) {
   // use env - ROBOFLOW_API_KEY below
@@ -35,7 +35,7 @@ export async function GET(req) {
     );
   }
 
-  // const cacheKey = `${assetName}-${transformationString}`;
+  const cacheKey = `${assetName}-${transformationString}`;
 
   // console.log("cache has", cache.has(cacheKey));
   console.log(
@@ -44,21 +44,21 @@ export async function GET(req) {
     transformationString
   );
 
-  // if (cache.has(cacheKey)) {
-  //   // Serve from cache
-  //   const cachedImage = cache.get(cacheKey);
-  //   // Send the processed image back
-  //   const headers = new Headers();
-  //   headers.set(
-  //     "Content-Type",
-  //     `${transformationString?.rt ? "image/png" : `image/png`}`
-  //   );
-  //   headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+  if (cache.has(cacheKey)) {
+    // Serve from cache
+    const cachedImage = cache.get(cacheKey);
+    // Send the processed image back
+    const headers = new Headers();
+    headers.set(
+      "Content-Type",
+      `${transformationString?.rt ? "image/png" : `image/png`}`
+    );
+    headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
-  //   return new NextResponse(cachedImage, {
-  //     headers,
-  //   });
-  // }
+    return new NextResponse(cachedImage, {
+      headers,
+    });
+  }
 
   try {
     const assetUrl = `https://utfs.io/f/${assetName}`;
@@ -460,16 +460,20 @@ export async function GET(req) {
     }
 
     // Cache the processed image
-    // cache.set(cacheKey, finalImageBuffer);
+    cache.set(cacheKey, finalImageBuffer);
 
     // Send the processed image back
     const headers = new Headers();
     headers.set(
       "Content-Type",
-      `${transformationString?.rt ? "image/png" : `image/png`}`
+      `${
+        transformationString?.rt || transformations.overlayText
+          ? "image/png"
+          : `image/${metadata.format}`
+      }`
     );
     headers.set("Content-Disposition", "inline");
-    // headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+    headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
     return new NextResponse(finalImageBuffer, {
       headers,
