@@ -287,7 +287,10 @@ export async function GET(req) {
 
         const processedImageBuffer = await image.toBuffer();
 
-        GlobalFonts.registerFromPath("public/Roboto-Italic.ttf", "Yo");
+        GlobalFonts.registerFromPath(
+          "https://github.com/Sammy970/test-canvas/raw/main/Roboto-Italic.ttf",
+          "Yo"
+        );
 
         const imageLoaded = await loadImage(assetUrl);
 
@@ -439,7 +442,7 @@ export async function GET(req) {
         // ctx.fillText(text, adjustedX, adjustedY);
 
         // Draw each line of text on the canvas
-        await lines.forEach((line, index) => {
+        lines.forEach((line, index) => {
           ctx.fillText(line, posX, posY + index * textHeight); // Adjust for line height
         });
       } catch (error) {
@@ -450,8 +453,8 @@ export async function GET(req) {
     let finalImageBuffer;
 
     if (transformations.overlayText) {
-      // finalImageBuffer = canvas.toBuffer("image/png");
-      finalImageBuffer = await canvas.encode("png");
+      finalImageBuffer = canvas.toBuffer("image/png");
+      // finalImageBuffer = await canvas.encode("png");
     }
     // Convert the processed image to a buffer
     else {
