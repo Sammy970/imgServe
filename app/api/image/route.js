@@ -33,30 +33,30 @@ export const GET = async (req) => {
     );
   }
 
-  const cacheKey = `${assetName}-${transformationString}`;
+  // const cacheKey = `${assetName}-${transformationString}`;
 
-  console.log("cache has", cache.has(cacheKey));
+  // console.log("cache has", cache.has(cacheKey));
   console.log(
     "Assrt name, transformationString",
     assetName,
     transformationString
   );
 
-  if (cache.has(cacheKey)) {
-    // Serve from cache
-    const cachedImage = cache.get(cacheKey);
-    // Send the processed image back
-    const headers = new Headers();
-    headers.set(
-      "Content-Type",
-      `${transformationString?.rt ? "image/png" : `image/png`}`
-    );
-    headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+  // if (cache.has(cacheKey)) {
+  //   // Serve from cache
+  //   const cachedImage = cache.get(cacheKey);
+  //   // Send the processed image back
+  //   const headers = new Headers();
+  //   headers.set(
+  //     "Content-Type",
+  //     `${transformationString?.rt ? "image/png" : `image/png`}`
+  //   );
+  //   headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
-    return new NextResponse(cachedImage, {
-      headers,
-    });
-  }
+  //   return new NextResponse(cachedImage, {
+  //     headers,
+  //   });
+  // }
 
   try {
     const assetUrl = `https://utfs.io/f/${assetName}`;
@@ -452,7 +452,7 @@ export const GET = async (req) => {
     }
 
     // Cache the processed image
-    cache.set(cacheKey, finalImageBuffer);
+    // cache.set(cacheKey, finalImageBuffer);
 
     // Send the processed image back
     const headers = new Headers();
