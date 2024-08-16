@@ -29,6 +29,7 @@ const nextConfig = {
     domains: ["imgserve.vercel.app", "localhost"],
   },
   experimental: {
+    serverComponentsExternalPackages: ["onnxruntime-node"],
     outputFileTracingIncludes: {
       "./app/api/image/route": ["./fonts/*"],
     },
