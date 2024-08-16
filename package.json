@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@imgly/background-removal-node": "^1.4.5",
     "@napi-rs/canvas": "^0.1.53",
     "@vercel/webpack-asset-relocator-loader": "^1.7.4",
     "next": "14.2.5",
