@@ -35,6 +35,7 @@ const nextConfig = {
   },
   webpack: (config, context) => {
     config.externals.push("@napi-rs/canvas");
+    config.externals.push("@imgly/background-removal-node");
     return config;
   },
 };

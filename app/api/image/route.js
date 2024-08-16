@@ -2,6 +2,7 @@ import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
+import removeBackground from "@imgly/background-removal-node";
 const cache = new Map();
 
 GlobalFonts.registerFromPath(join(process.cwd(), "fonts/Arial.ttf"));
@@ -37,7 +38,7 @@ export async function GET(req) {
   }
 
   function reorderTransformations(inputString) {
-    const mainOrder = ["w", "h", "ar", "rt", "fo"];
+    const mainOrder = ["w", "h", "ar", "rt", "fo", "removeBg"];
     const textOrder = [
       "l-text",
       "i",
@@ -159,6 +160,10 @@ export async function GET(req) {
         else if (key === "fo") {
           let parsedValue = value.replace(/([a-z])([A-Z])/g, "$1 $2");
           parsedTransformations[key] = parsedValue.toLowerCase();
+        }
+        // Remove background
+        else if (key === "removeBg") {
+          parsedTransformations["removeBg"] = value === "true";
         }
         // all other keys
         else {
@@ -492,9 +497,30 @@ export async function GET(req) {
 
     let finalImageBuffer;
 
+    async function removeImageBackground(image) {
+      try {
+        // process the image to array buffer
+        const processedImageBuffer = await image.toBuffer();
+        let blob = new Blob([processedImageBuffer], { type: "image/png" });
+        blob = await removeBackground(blob);
+        const buffer = Buffer.from(await blob.arrayBuffer());
+        return buffer;
+      } catch (error) {
+        console.error("Error found in remove background transformation", error);
+        return image;
+      }
+    }
+
+    if (transformations.removeBg) {
+      image = await removeImageBackground(image);
+    }
+
     if (transformations.overlayText) {
       finalImageBuffer = canvas.toBuffer("image/png");
-      // finalImageBuffer = await canvas.encode("png");
+    }
+    // if background remove is true then return the image buffer
+    else if (transformations.removeBg) {
+      finalImageBuffer = image;
     }
     // Convert the processed image to a buffer
     else {
