@@ -272,17 +272,24 @@ export async function GET(req) {
       });
     }
 
-    // Apply overlay text transformation
+    // Decrease the quality of the image to reduce file size
+    if (transformations.overlayText) {
+      image = image.png({ quality: 75 });
+    } else {
+      if (metadata.format === "jpeg") image = image.jpeg({ quality: 75 });
+      else if (metadata.format === "png") image = image.png({ quality: 75 });
+      else image.jpeg({ quality: 75 });
+    }
 
+    // Apply overlay text transformatio
     let canvas;
-
     if (transformations.overlayText) {
       try {
         const { i, lx, ly, fs, cl, w, lfo } = transformations.overlayText;
 
         const processedImageBuffer = await image.toBuffer();
 
-        const imageLoaded = await loadImage(assetUrl);
+        const imageLoaded = await loadImage(processedImageBuffer);
 
         // Create a canvas with the same dimensions as the image
         // canvas = createCanvas(imageLoaded.width, imageLoaded.height);
