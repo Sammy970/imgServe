@@ -36,6 +36,59 @@ export async function GET(req) {
     );
   }
 
+  function reorderTransformations(inputString) {
+    const mainOrder = ["w", "h", "ar", "rt", "fo"];
+    const textOrder = [
+      "l-text",
+      "i",
+      "w",
+      "lx",
+      "ly",
+      "lfo",
+      "fs",
+      "cl",
+      "l-end",
+    ];
+
+    const transformations = inputString.split(",");
+    const mainTransforms = {};
+    const textTransforms = [];
+    let inTextOverlay = false;
+
+    transformations.forEach((transform) => {
+      const [type] = transform.split("-");
+      if (transform === "l-text") {
+        inTextOverlay = true;
+        textTransforms.push(transform);
+      } else if (transform === "l-end") {
+        textTransforms.push(transform);
+        inTextOverlay = false;
+      } else if (inTextOverlay) {
+        textTransforms.push(transform);
+      } else if (mainOrder.includes(type)) {
+        mainTransforms[type] = transform;
+      }
+    });
+
+    const orderedMain = mainOrder
+      .map((type) => mainTransforms[type])
+      .filter(Boolean);
+
+    const orderedText = textOrder.reduce((acc, type) => {
+      const matching = textTransforms.filter((t) => t.startsWith(type));
+      return acc.concat(matching);
+    }, []);
+
+    return [...orderedMain, ...orderedText].join(",");
+  }
+
+  // Reorder transformations based on the transformationOrder
+  transformationString = transformationString.replace("tr:", "");
+
+  transformationString = reorderTransformations(transformationString);
+
+  transformationString = `tr:${transformationString}`;
+
   const cacheKey = `${assetName}-${transformationString}`;
 
   if (cache.has(cacheKey)) {
@@ -116,67 +169,44 @@ export async function GET(req) {
       return parsedTransformations;
     };
 
-    const transformations = parser();
-
-    // Object detection
-    let detectedObject;
-    if (transformations.fo) {
-      const objectDetectionResponse = await fetch(
-        `https://detect.roboflow.com/coco/5?api_key=${ROBOFLOW_API_KEY}&image=${assetUrl}`,
-        { method: "POST" }
-      );
-      const detectionData = await objectDetectionResponse.json();
-
-      if (transformations.fo === "auto") {
-        // Find the object with the highest confidence score
-        detectedObject = detectionData.predictions.reduce((prev, current) =>
-          prev.confidence > current.confidence ? prev : current
-        );
-      } else {
-        // Find the specified object in the detection results
-        detectedObject = detectionData.predictions
-          .map((prediction) => {
-            if (prediction.class === transformations.fo) {
-              return prediction;
-            }
-          })
-          .filter((item) => item !== undefined);
-
-        detectedObject = detectedObject.reduce((prev, current) =>
-          prev.confidence > current.confidence ? prev : current
-        );
-
-        if (!detectedObject) {
-          detectedObject = null;
-        }
-      }
-    }
+    let transformations = parser();
 
     // Fetch the original image
-    const response = await fetch(assetUrl);
-    if (!response.ok) {
-      throw new Error("Failed to fetch the image");
-    }
-    const imageBuffer = await response.arrayBuffer();
+    // const response = await fetch(assetUrl);
+    // if (!response.ok) {
+    //   throw new Error("Failed to fetch the image");
+    // }
+
+    const [imageResponse, detectionData] = await Promise.all([
+      fetch(assetUrl),
+      transformations.fo
+        ? fetch(
+            `https://detect.roboflow.com/coco/5?api_key=${ROBOFLOW_API_KEY}&image=${assetUrl}`,
+            { method: "POST" }
+          ).then((res) => res.json())
+        : null,
+    ]);
+
+    if (!imageResponse.ok) throw new Error("Failed to fetch the image");
 
     // Load image with Sharp
+    const imageBuffer = await imageResponse.arrayBuffer();
     let image = sharp(Buffer.from(imageBuffer));
 
     // Get original image metadata
     const metadata = await image.metadata();
 
-    // Apply width transformation
-    if (transformations.w) {
-      if (transformations.w <= 1) {
-        transformations.w = Math.round(metadata.width * transformations.w);
-      }
-    }
-
-    // Apply height transformation
-    if (transformations.h) {
-      if (transformations.h <= 1) {
-        transformations.h = Math.round(metadata.height * transformations.h);
-      }
+    // Object detection
+    let detectedObject;
+    if (detectionData) {
+      detectedObject =
+        transformations.fo === "auto"
+          ? detectionData.predictions.reduce((prev, current) =>
+              prev.confidence > current.confidence ? prev : current
+            )
+          : detectionData.predictions.find(
+              (prediction) => prediction.class === transformations.fo
+            );
     }
 
     // Apply aspect ratio transformation
@@ -257,6 +287,20 @@ export async function GET(req) {
       });
     }
 
+    // Apply width transformation
+    if (transformations.w) {
+      if (transformations.w <= 1) {
+        transformations.w = Math.round(metadata.width * transformations.w);
+      }
+    }
+
+    // Apply height transformation
+    if (transformations.h) {
+      if (transformations.h <= 1) {
+        transformations.h = Math.round(metadata.height * transformations.h);
+      }
+    }
+
     // Resize the image based on the calculated width and height
     if (transformations.w || transformations.h) {
       image = image.resize(transformations.w, transformations.h);
@@ -278,6 +322,7 @@ export async function GET(req) {
     } else {
       if (metadata.format === "jpeg") image = image.jpeg({ quality: 75 });
       else if (metadata.format === "png") image = image.png({ quality: 75 });
+      else if (metadata.format === "webp") image = image.webp({ quality: 75 });
       else image.jpeg({ quality: 75 });
     }
 
@@ -479,8 +524,4 @@ export async function GET(req) {
     console.error("error in api: ", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
-
-export default async function handler(req) {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }
