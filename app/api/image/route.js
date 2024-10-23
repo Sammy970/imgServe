@@ -2,7 +2,7 @@ import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
-import removeBackground from "@imgly/background-removal-node";
+// import removeBackground from "@imgly/background-removal-node";
 const cache = new Map();
 
 GlobalFonts.registerFromPath(join(process.cwd(), "fonts/Arial.ttf"));
