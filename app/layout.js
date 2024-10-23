@@ -4,7 +4,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "imgServe - Way to serve images",
+  title: "imgServe - Serve with Style",
   description: "Way to do on the fly image transformations",
 };
 

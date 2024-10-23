@@ -1,12 +1,13 @@
 import Image from "next/image";
+import bgWallpaper from "@/public/images/noise-light.png";
 
 export default function Home() {
   return (
-    <main className="flex flex-col items-center justify-center w-full min-h-screen bg-gray-100 py-10 px-2">
+    <main className="flex flex-col items-center justify-center w-full min-h-screen py-10 px-2 bg-[#3139FA] bg-[url('/images/noise-light.png')]">
       <h1 className="text-4xl font-bold text-gray-800 mb-8 max-sm:ml-4">
         Image Transformations Showcase
       </h1>
-      <div className="w-full flex flex-col items-center justify-center mx-auto gap-10 m-10 p-10 rounded-lg shadow-lg bg-white">
+      <div className="w-full flex flex-col items-center justify-center mx-auto gap-10 m-10 p-10 rounded-lg shadow-lg">
         {[
           {
             optimizedSrc:

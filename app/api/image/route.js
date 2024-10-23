@@ -2,7 +2,7 @@ import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
-// import removeBackground from "@imgly/background-removal-node";
+import removeBackground from "@imgly/background-removal-node";
 const cache = new Map();
 
 GlobalFonts.registerFromPath(join(process.cwd(), "fonts/Arial.ttf"));
@@ -201,6 +201,16 @@ export async function GET(req) {
     // Get original image metadata
     const metadata = await image.metadata();
 
+    // Decrease the quality of the image to reduce file size
+    if (transformations.overlayText) {
+      image = image.png({ quality: 75 });
+    } else {
+      if (metadata.format === "jpeg") image = image.jpeg({ quality: 75 });
+      else if (metadata.format === "png") image = image.png({ quality: 75 });
+      else if (metadata.format === "webp") image = image.webp({ quality: 75 });
+      else image.jpeg({ quality: 75 });
+    }
+
     // Object detection
     let detectedObject;
     if (detectionData) {
@@ -319,16 +329,6 @@ export async function GET(req) {
       image = image.png().rotate(rotation, {
         background: { r: 0, g: 0, b: 0, alpha: 0 }, // Set the background to transparent
       });
-    }
-
-    // Decrease the quality of the image to reduce file size
-    if (transformations.overlayText) {
-      image = image.png({ quality: 75 });
-    } else {
-      if (metadata.format === "jpeg") image = image.jpeg({ quality: 75 });
-      else if (metadata.format === "png") image = image.png({ quality: 75 });
-      else if (metadata.format === "webp") image = image.webp({ quality: 75 });
-      else image.jpeg({ quality: 75 });
     }
 
     // Apply overlay text transformatio
@@ -497,6 +497,7 @@ export async function GET(req) {
 
     let finalImageBuffer;
 
+    // Function to remove BG
     // async function removeImageBackground(image) {
     //   try {
     //     // process the image to array buffer
@@ -522,6 +523,7 @@ export async function GET(req) {
     // else if (transformations.removeBg) {
     //   finalImageBuffer = image;
     // }
+    
     // Convert the processed image to a buffer
     else {
       finalImageBuffer = await image.toBuffer();
