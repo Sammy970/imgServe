@@ -2,8 +2,8 @@ import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { Canvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
+import redis from "@/lib/redis";
 // import removeBackground from "@imgly/background-removal-node";
-const cache = new Map();
 
 GlobalFonts.registerFromPath(join(process.cwd(), "fonts/Arial.ttf"));
 
@@ -92,18 +92,21 @@ export async function GET(req) {
 
   const cacheKey = `${assetName}-${transformationString}`;
 
-  if (cache.has(cacheKey)) {
-    // Serve from cache
-    const cachedImage = cache.get(cacheKey);
+  // Check if the transformed image is already in cache
+  const cachedImage = await redis.get(cacheKey);
+
+  if (cachedImage) {
     // Send the processed image back
+    // const imageBuffer = Buffer.from(cachedImage.data);
+    const imageBuffer = Buffer.from(cachedImage, "base64");
     const headers = new Headers();
     headers.set(
       "Content-Type",
       `${transformationString?.rt ? "image/png" : `image/png`}`
     );
-    headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
+    // headers.set("Cache-Control", "public, max-age=31536000, immutable"); // Cache for one year
 
-    return new NextResponse(cachedImage, {
+    return new NextResponse(imageBuffer, {
       headers,
     });
   }
@@ -175,12 +178,6 @@ export async function GET(req) {
     };
 
     let transformations = parser();
-
-    // Fetch the original image
-    // const response = await fetch(assetUrl);
-    // if (!response.ok) {
-    //   throw new Error("Failed to fetch the image");
-    // }
 
     const [imageResponse, detectionData] = await Promise.all([
       fetch(assetUrl),
@@ -497,40 +494,18 @@ export async function GET(req) {
 
     let finalImageBuffer;
 
-    // Function to remove BG
-    // async function removeImageBackground(image) {
-    //   try {
-    //     // process the image to array buffer
-    //     const processedImageBuffer = await image.toBuffer();
-    //     let blob = new Blob([processedImageBuffer], { type: "image/png" });
-    //     blob = await removeBackground(blob);
-    //     const buffer = Buffer.from(await blob.arrayBuffer());
-    //     return buffer;
-    //   } catch (error) {
-    //     console.error("Error found in remove background transformation", error);
-    //     return image;
-    //   }
-    // }
-
-    // if (transformations.removeBg) {
-    //   image = await removeImageBackground(image);
-    // }
-
     if (transformations.overlayText) {
       finalImageBuffer = canvas.toBuffer("image/png");
     }
-    // if background remove is true then return the image buffer
-    // else if (transformations.removeBg) {
-    //   finalImageBuffer = image;
-    // }
-    
+
     // Convert the processed image to a buffer
     else {
       finalImageBuffer = await image.toBuffer();
     }
 
     // Cache the processed image
-    cache.set(cacheKey, finalImageBuffer);
+    // cache.set(cacheKey, finalImageBuffer);
+    await redis.set(cacheKey, finalImageBuffer.toString("base64"), "EX", 3600); // Cache for one hour
 
     // Send the processed image back
     const headers = new Headers();
