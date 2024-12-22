@@ -14,14 +14,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut } from "lucide-react";
 import { User } from "@supabase/supabase-js";
+import { useUser } from "@/context/UserContext";
+import { signOut } from "./actions";
 
 export const UserDropDown = () => {
   const router = useRouter();
 
+  const { setUser, setProfile, profile, loading } = useUser();
+
   const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
+    try {
+      await signOut()
+        .then(() => {
+          setUser(null);
+          setProfile(null);
+          router.push("/login");
+        })
+        .catch((error) => {
+          console.error("Error logging out:", error);
+        });
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
   };
 
   return (
@@ -37,7 +51,13 @@ export const UserDropDown = () => {
             onClick={() => {}}
             size={20}
           />
-          <span className="truncate font-semibold">{"Samyak"}</span>
+          <span className="truncate font-semibold">
+            {loading ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+            ) : (
+              profile?.first_name
+            )}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -62,24 +82,12 @@ export const UserDropDown = () => {
 export const Navbar = () => {
   const router = useRouter();
 
-  const [user, setUser] = useState<User>();
-
-  const getUser = async () => {
-    const supabase = createClient();
-    const user = await supabase.auth.getUser();
-    return user;
-  };
+  const { fetchUserAndProfile, user, profile } = useUser();
 
   useLayoutEffect(() => {
-    getUser()
-      .then((user) => {
-        if (user.data.user) {
-          setUser(user.data.user);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching user:", error);
-      });
+    if (!user || !profile) {
+      fetchUserAndProfile();
+    }
   }, []);
 
   const currentPageName = usePathname().split("/")[1].toLowerCase();

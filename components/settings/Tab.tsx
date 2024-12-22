@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { Card, CardContent } from "../ui/card";
 import Image from "next/image";
@@ -17,7 +19,7 @@ const Tab = ({ name, icon }: TabProps) => {
         <Image
           src={require(`@/assets/settings/${icon}`)}
           alt={name}
-          className={`relative -bottom-1`}
+          className={`relative -bottom-1 w-auto h-auto`}
           width={140}
           height={140}
         />

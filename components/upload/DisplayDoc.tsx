@@ -44,8 +44,8 @@ const DisplayDoc = ({
           src={url}
           alt={name}
           className="w-full h-[150px] object-contain"
-          width={150}
           height={100}
+          width={150}
         />
       </CardContent>
       <CardFooter className="p-4 flex-col selection:text-bgDarkGreen">

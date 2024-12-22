@@ -2,22 +2,27 @@
 
 import { Navbar } from "@/components/home/Navbar";
 import WelcomeBanner from "@/components/home/WelcomeBanner";
-import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
+import { checkUser } from "./actions";
 
 export default function Home() {
   const router = useRouter();
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const supabase = createClient();
-      const userData = await supabase.auth.getUser();
-      if (!userData) {
-        router.push("/login");
-      } 
-    };
-    checkUser();
+  useLayoutEffect(() => {
+    checkUser()
+      .then((res) => {
+        if (res?.result === "Not authenticated") {
+          router.push("/login");
+        }
+
+        if (res?.result === "error") {
+          console.error("Error checking user:", res.error);
+        }
+      })
+      .catch((err) => {
+        console.error("Error checking user:", err);
+      });
   }, []);
 
   return (

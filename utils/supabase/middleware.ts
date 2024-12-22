@@ -1,3 +1,4 @@
+import { useUser } from "@/context/UserContext";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -46,6 +47,31 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  if (user) {
+    // check profile -
+    // if user has a profile, redirect to home page
+    // if user does not have a profile, redirect to profile page
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) {
+      return supabaseResponse;
+    }
+
+    if (profileData) {
+      // user has a profile
+      return supabaseResponse;
+    } else {
+      // user does not have a profile
+      const url = request.nextUrl.clone();
+      url.pathname = "/profile";
+      return NextResponse.redirect(url);
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're

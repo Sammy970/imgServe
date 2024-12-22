@@ -19,7 +19,7 @@ const WelcomeBanner = () => {
           width={80}
           priority
         />
-        <div className="flex flex-col gap-2 items-end">
+        <div className="flex flex-col gap-2 items-end selection:bg-bgBeige">
           <h2 className="font-archivo-black text-2xl text-right">
             Welcome to IMAGE SERVE
           </h2>

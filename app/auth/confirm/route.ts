@@ -13,12 +13,30 @@ export async function GET(request: NextRequest) {
   if (token_hash && type) {
     const supabase = await createClient();
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash,
     });
     if (!error) {
       // redirect user to specified redirect URL or root of app
+
+      const { data: userProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", data?.user?.id)
+        .single();
+
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        redirect("/error");
+      }
+
+      if (userProfile) {
+        redirect("/");
+      } else {
+        redirect("/profile");
+      }
+
       redirect("/");
     }
   }

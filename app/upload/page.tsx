@@ -1,17 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState, useEffect } from "react";
 import UploadDoc from "@/components/upload/UploadDoc";
 import SelectedDoc from "@/components/upload/SelectedDoc";
 
 const Upload = () => {
   const [selectedDocs, setSelectedDocs] = useState<File[]>([]);
-
-  useLayoutEffect(() => {
-    fetch("/api/getdata")
-      .then((res) => res.json())
-      .then((data) => console.log("data: ", data));
-  }, []);
 
   return (
     <div className="pt-10">

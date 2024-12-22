@@ -9,6 +9,8 @@ import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext";
 
 export default function LoginPage() {
   type Mode = "login" | "signup";
@@ -19,6 +21,10 @@ export default function LoginPage() {
   const [emailSent, setEmailSent] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [screenSize, setScreenSize] = useState<number>(0);
+
+  const navigate = useRouter();
+
+  const { setUser, setProfile } = useUser();
 
   useEffect(() => {
     setScreenSize(window.screen.width);
@@ -47,7 +53,9 @@ export default function LoginPage() {
 
     try {
       if (mode === "signup") {
-        const result = await signup(formData);
+        const website = window.location.origin;
+        const result = await signup(formData, website);
+
         if (result?.error) {
           setError(result.error);
           return;
@@ -57,9 +65,28 @@ export default function LoginPage() {
           setEmailSent(true);
         }
       } else {
+        const website = window.location.origin;
         const result = await login(formData);
         if (result?.error) {
           setError(result.error);
+        }
+
+        if (result?.result === "success") {
+          if (result?.data?.user) {
+            setUser({
+              email: result.data.user.email ?? "",
+              id: result.data.user.id ?? "",
+              verified: result.data.user.email_confirmed_at !== null,
+            });
+
+            if (result?.data?.profile) {
+              setProfile(result.data.profile as any);
+            }
+          }
+
+          if (result?.redirect) {
+            navigate.push(result.redirect);
+          }
         }
       }
     } catch (err) {
@@ -101,7 +128,7 @@ export default function LoginPage() {
           screenSize <= 430
             ? 200
             : screenSize < 768
-            ? 250
+            ? 180
             : screenSize < 1024
             ? 300
             : screenSize < 1280
@@ -118,9 +145,9 @@ export default function LoginPage() {
           screenSize <= 430
             ? 200
             : screenSize < 768
-            ? 250
+            ? 180
             : screenSize < 1024
-            ? 300
+            ? 250
             : screenSize < 1280
             ? 300
             : 400
@@ -128,13 +155,19 @@ export default function LoginPage() {
       />
 
       {screenSize <= 430 ? (
-        <div className="absolute top-5 left-5 px-5 z-0 bg-bgLightGreen">
+        <div className="absolute top-5 left-5 px-5 z-0 bg-bgLightGreen rounded-md">
           <h1 className="text-4xl font-bold font-archivo-black text-bgDarkGreen">
             IMAGE <br /> SERVE
           </h1>
         </div>
+      ) : screenSize <= 768 ? (
+        <div className="absolute top-6 left-10 z-0 bg-bgLightGreen rounded-md">
+          <h1 className="text-6xl font-bold font-archivo-black text-bgDarkGreen">
+            IMAGE <br /> SERVE
+          </h1>
+        </div>
       ) : (
-        <div className="absolute top-10 left-10 z-0 bg-bgLightGreen">
+        <div className="absolute top-10 left-10 z-0 bg-bgLightGreen rounded-md px-6">
           <h1 className="text-8xl font-bold font-archivo-black text-bgDarkGreen">
             IMAGE SERVE
           </h1>
@@ -142,7 +175,7 @@ export default function LoginPage() {
       )}
 
       {screenSize <= 430 ? (
-        <div className="absolute bottom-10 right-10 z-0 bg-bgLightGreen">
+        <div className="absolute bottom-10 right-10 z-0 bg-bgLightGreen rounded-md">
           <h1 className="text-4xl py-2 px-4 font-bold font-archivo-black text-bgDarkGreen">
             {mode === "login"
               ? "Log In"
@@ -152,7 +185,7 @@ export default function LoginPage() {
           </h1>
         </div>
       ) : (
-        <div className="absolute bottom-10 right-10 z-0 bg-bgLightGreen">
+        <div className="absolute bottom-10 right-10 z-0 bg-bgLightGreen rounded-md px-4">
           <h1 className="text-8xl py-2 px-4 font-bold font-archivo-black text-bgDarkGreen">
             {mode === "login"
               ? "Log In"
@@ -198,7 +231,7 @@ export default function LoginPage() {
                   required
                   className="border-bgDarkGreen pr-10"
                 />
-                {showPassword ? (
+                {!showPassword ? (
                   <EyeOff
                     onClick={onShowPassword}
                     size={20}
