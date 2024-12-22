@@ -5,37 +5,36 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { AiOutlineUser } from "react-icons/ai";
 import { TbBell } from "react-icons/tb";
-import { useRouter, usePathname } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useRouter, usePathname, redirect } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
-import { LogOut } from "lucide-react";
-import { User } from "@supabase/supabase-js";
+import { LogIn, LogOut } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { signOut } from "./actions";
+import { revalidatePath } from "next/cache";
 
 export const UserDropDown = () => {
   const router = useRouter();
 
-  const { setUser, setProfile, profile, loading } = useUser();
+  const { setUser, setProfile, user, profile, loading } = useUser();
 
+  console.log("User:", user);
   const logout = async () => {
+    console.log("Logging out...");
     try {
-      await signOut()
-        .then(() => {
-          setUser(null);
-          setProfile(null);
-          router.push("/login");
-        })
-        .catch((error) => {
-          console.error("Error logging out:", error);
-        });
+      await signOut().catch((error) => {
+        console.error("Error logging out:", error);
+      });
     } catch (error) {
       console.error("Error logging out:", error);
     }
+  };
+
+  const login = () => {
+    router.push("/login");
   };
 
   return (
@@ -67,12 +66,21 @@ export const UserDropDown = () => {
         sideOffset={4}
       >
         <Button
-          onClick={logout}
+          onClick={user?.id ? logout : login}
           variant={"ghost"}
           className="hover:bg-bgLightGreen/60 w-full flex items-center justify-start"
         >
-          <LogOut />
-          Log out
+          {user?.id ? (
+            <>
+              <LogOut />
+              Log out
+            </>
+          ) : (
+            <>
+              <LogIn />
+              Log In
+            </>
+          )}
         </Button>
       </DropdownMenuContent>
     </DropdownMenu>
